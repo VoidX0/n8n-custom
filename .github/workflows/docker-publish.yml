@@ -25,6 +25,10 @@ jobs:
           OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
           echo "OWNER=$OWNER" >> $GITHUB_ENV
           echo "Registry owner set to: $OWNER"
+      
+      - name: Get current date # 获取当前日期
+        id: date
+        run: echo "date=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
 
       - name: Log in to GitHub Container Registry # 登录到 GitHub 容器注册表
         uses: docker/login-action@v3
@@ -71,7 +75,7 @@ jobs:
           push: true
           tags: |
             ghcr.io/${{ env.OWNER }}/${{ env.IMAGE_NAME }}:latest
-            ghcr.io/${{ env.OWNER }}/${{ env.IMAGE_NAME }}:${{ github.run_number }}
+            ghcr.io/${{ env.OWNER }}/${{ env.IMAGE_NAME }}:${{ steps.date.outputs.date }}
           platforms: linux/amd64
           cache-from: type=gha
           cache-to: type=gha,mode=max
