@@ -1,19 +1,19 @@
 name: Docker Image CI
 on:
-    workflow_dispatch:
-    schedule:
-      - cron: '0 12 * * 0' # 每周日12点运行
+  workflow_dispatch: # 允许手动触发
+  schedule:
+    - cron: '0 */6 * * *' # 每6小时检查一次
 
+env:
+  IMAGE_NAME: n8n
+  UPSTREAM_IMAGE: blowsnow/n8n-chinese:latest
 
 jobs:
-  build-and-push:
+  check-and-build:
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
-
-    env:
-      IMAGE: n8n # 镜像名称
 
     steps:
       - name: Checkout repository # 签出代码
@@ -26,12 +26,6 @@ jobs:
           echo "OWNER=$OWNER" >> $GITHUB_ENV
           echo "Registry owner set to: $OWNER"
 
-      #      - name: Set up QEMU # 启用 QEMU 支持, 以支持多架构构建，如 linux/arm64
-      #        uses: docker/setup-qemu-action@v3
-
-      - name: Set up Docker Buildx # 设置 Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
       - name: Log in to GitHub Container Registry # 登录到 GitHub 容器注册表
         uses: docker/login-action@v3
         with:
@@ -39,13 +33,49 @@ jobs:
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push Docker image # 构建并推送 Docker 镜像
+      - name: Check for upstream updates # 检查上游镜像更新
+        id: check
+        run: |
+          echo "Checking upstream image: ${{ env.UPSTREAM_IMAGE }}"
+          
+          # 获取上游镜像的当前 Digest (无需拉取镜像 Skopeo直接查询远程)
+          UPSTREAM_DIGEST=$(skopeo inspect docker://${{ env.UPSTREAM_IMAGE }} --format '{{.Digest}}')
+          echo "Upstream Digest: $UPSTREAM_DIGEST"
+          
+          # 获取自己镜像中记录的 'upstream_digest' Label
+          # 注意：如果第一次运行或镜像不存在，这里会报错，所以加了 || true 处理
+          MY_IMAGE="ghcr.io/${{ env.OWNER }}/${{ env.IMAGE_NAME }}:latest"
+          MY_RECORDED_DIGEST=$(skopeo inspect docker://$MY_IMAGE --format '{{.Labels.upstream_digest}}' || echo "none")
+          echo "My Recorded Digest: $MY_RECORDED_DIGEST"
+          
+          # 对比摘要
+          if [ "$UPSTREAM_DIGEST" != "$MY_RECORDED_DIGEST" ]; then
+            echo "Updates detected! Triggering build."
+            echo "needs_build=true" >> $GITHUB_OUTPUT
+            echo "upstream_digest=$UPSTREAM_DIGEST" >> $GITHUB_OUTPUT
+          else
+            echo "No updates detected. Skipping build."
+            echo "needs_build=false" >> $GITHUB_OUTPUT
+          fi
+
+      # 构建步骤 (仅当 needs_build 为 true 时运行)
+      - name: Set up Docker Buildx # 设置 Docker Buildx
+        if: steps.check.outputs.needs_build == 'true' || github.event_name == 'workflow_dispatch'
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push Docker image
+        if: steps.check.outputs.needs_build == 'true' || github.event_name == 'workflow_dispatch'
         uses: docker/build-push-action@v5
         with:
           context: .
           push: true
           tags: |
-            ghcr.io/${{ env.OWNER }}/${{ env.IMAGE }}:latest
+            ghcr.io/${{ env.OWNER }}/${{ env.IMAGE_NAME }}:latest
+            ghcr.io/${{ env.OWNER }}/${{ env.IMAGE_NAME }}:${{ github.run_number }}
           platforms: linux/amd64
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          # 将上游的 Digest 写入到新镜像的 Label 中，供下次检查使用
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }} 
+            upstream_digest=${{ steps.check.outputs.upstream_digest }}

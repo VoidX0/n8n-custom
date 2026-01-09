@@ -1,5 +1,4 @@
 FROM blowsnow/n8n-chinese:latest
-LABEL org.opencontainers.image.source=https://github.com/VoidX0/n8n-custom
 
 # Copy apk and its deps from Alpine 3.23
 COPY --from=alpine:3.23 /sbin/apk /sbin/apk
