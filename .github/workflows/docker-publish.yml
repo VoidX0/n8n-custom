@@ -6,7 +6,7 @@ on:
 
 env:
   IMAGE_NAME: n8n
-  UPSTREAM_IMAGE: blowsnow/n8n-chinese:latest
+  UPSTREAM_IMAGE: n8nio/n8n:latest
 
 jobs:
   check-and-build:
