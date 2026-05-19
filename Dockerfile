@@ -17,7 +17,7 @@ RUN set -ex; \
     mkdir -p /tmp/n8n-i18n; \
     tar -xzf /tmp/editor-ui.tar.gz -C /tmp/n8n-i18n; \
     # 目标路径（n8n 静态资源路径）
-    TARGET_DIR="/usr/local/lib/node_modules/n8n/node_modules/n8n-editor-ui/dist"; \
+    TARGET_DIR="/usr/lib/node_modules/n8n/node_modules/n8n-editor-ui/dist"; \
     # 确保目标目录存在并清空旧文件（可选），然后把解压出的 dist 里的内容复制进去
     cp -rd /tmp/n8n-i18n/dist/* "$TARGET_DIR/"; \
     # 清理
