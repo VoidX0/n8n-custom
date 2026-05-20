@@ -19,10 +19,6 @@ RUN set -ex; \
     tar -xzf /tmp/editor-ui.tar.gz -C /tmp/n8n-i18n; \
     \
     # 定义所有可能的 n8n 静态资源路径
-    # 1. /usr/local/lib... (常见于官方镜像)
-    # 2. /usr/lib... (某些 Alpine 构建版本)
-    # 3. 包含 @n8n/ 作用域的新路径
-    # 4. 不含 @n8n/ 作用域的旧路径
     POSSIBLE_PATHS=" \
         /usr/local/lib/node_modules/n8n/node_modules/n8n-editor-ui/dist \
         /usr/lib/node_modules/n8n/node_modules/n8n-editor-ui/dist \
